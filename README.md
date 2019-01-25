@@ -1,6 +1,6 @@
-# apostrophe-link-preview-widgets
+# apostrophe-headless-preview-widgets
 
-## Renders a preview of a URL based on extracted metadata
+## Renders page previews based on an apostrophe-headless index endpoint
 
 ### Detail
 `apostrophe-link-preview-widgets` lets you paste a link to an external URL and have scraped meta data returned to a template. You can customize that template and use it to display a preview of the external website within your Apostrophe site. All previews are AJAXed in after page load and the module leverages `apostrophe-caches` for fastest delivery.
