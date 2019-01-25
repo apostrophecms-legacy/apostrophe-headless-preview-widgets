@@ -1,14 +1,14 @@
 {
-  "name": "apostrophe-link-preview-widgets",
+  "name": "apostrophe-headless-preview-widgets",
   "version": "1.0.1",
-  "description": "Link Previews for ApostropheCMS",
+  "description": "Renders page previews based on an apostrophe-headless index endpoint",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/punkave/apostrophe-link-preview-widgets.git"
+    "url": "git+https://github.com/apostrophecms/apostrophe-headless-preview-widgets.git"
   },
   "keywords": [
     "ApostropheCMS",
@@ -21,9 +21,9 @@
   "author": "P'unk Ave",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/punkave/apostrophe-link-preview-widgets/issues"
+    "url": "https://github.com/apostrophecms/apostrophe-headless-preview-widgets/issues"
   },
-  "homepage": "https://github.com/punkave/apostrophe-link-preview-widgets#readme",
+  "homepage": "https://github.com/apostrophecms/apostrophe-headless-preview-widgets#readme",
   "devDependencies": {
     "eslint": "^4.2.0",
     "eslint-config-punkave": "^1.0.8",
