@@ -5,23 +5,9 @@ const qs = require('qs');
 
 module.exports = {
   extend: 'apostrophe-widgets',
-  label: 'Link Previews',
+  label: 'Headless Previews',
+  alias: 'apostropheHeadlessPreviews',
   addFields: [
-    {
-      name: 'urlType',
-      label: 'URL Type',
-      help: 'Choose individual if curating your own tiles',
-      type: 'select',
-      choices: [
-        { label: 'Individual Site', value: 'individual', showFields: ['individualUrl'] },
-        { label: 'Apostrophe Headless Index', value: 'headless', showFields: ['headlessUrl', 'headlessFilterBy', 'headlessLimit'] }
-      ]
-    },
-    {
-      name: 'individualUrl',
-      label: 'URL',
-      type: 'url'
-    },
     {
       name: 'headlessUrl',
       label: 'URL',
@@ -40,7 +26,7 @@ module.exports = {
       choices: [
         { label: 'Nothing', value: 'none' },
         { label: 'Tag', value: 'tag', showFields: ['headlessFilterByTag'] },
-        { label: 'Join', value: 'join', showFields: ['headlessFilterByJoinName', 'headlessFilterByJoinValue'] }
+        { label: 'Join', value: 'join', showFields: ['headlessFilterByJoinName', 'headlessFilterByJoinSlug'] }
       ]
     },
     {
@@ -61,161 +47,96 @@ module.exports = {
   ],
 
   construct: function (self, options) {
-    // Get default scrapers
-    self.scrapers = require('./lib/scrapers');
-
-    // Set up our user options
-    if (self.options.addScrapers) {
-      self.options.addScrapers.forEach(function (scraper) {
-        if (_.isString(scraper.name) && _.isFunction(scraper.scraper)) {
-          self.scrapers.push(scraper);
-        } else {
-          self.apos.utils.warn('Warning: An apostrophe-link-preview-widgets scraper was malformed. They should be formatted { name: "string", scraper: fn($, body) } ');
-        }
-      });
-    }
-
-    if (self.options.removeScrapers) {
-      self.scrapers = _.filter(self.scrapers, function (o) {
-        if (!self.options.removeScrapers.includes(o.name)) {
-          return o;
-        }
-      });
-    }
-
     // Route that responds to requests from the front end
     self.route('post', 'load', async function (req, res) {
       try {
-        const urls = await self.formatUrls(req.body.data);
-        const caches = await self.getCaches(urls);
-        const data = await self.getData(caches);
-        const body = self.renderer('widgetAjax', { previews: data })(req);
+        const cache = await self.getCache(req.body.data);
+        const data = await self.getData(cache);
+        const body = self.renderer('widgetAjax', data)(req);
         return res.send({
           body: body,
           status: 'ok',
           data: data
         });
       } catch (e) {
-        return self.apos.utils.error(e);
+        self.apos.utils.error(e);
+        const body = self.renderer('widgetAjax', {
+          status: 'error',
+          error: e
+        })(req);
+        return res.send({
+          body: body,
+          message: e.message
+        });
       }
     });
 
     // pull all cached material for processing
-    self.getCaches = async function (urls) {
-      try {
-        let caches = [];
-        const previewCache = self.apos.caches.get('apostrophe-link-previews');
-        await Promise.all(urls.map(async url => {
-          caches.push({
-            url: url,
-            cache: await previewCache.get(url)
-          });
-        }));
-        return caches;
-      } catch (e) {
-        console.log('e in getCaches');
-        return self.apos.utils.error(e);
+    self.getCache = async function (data) {
+      let cache;
+      let url = data.headlessUrl;
+      let query = {};
+      const previewCache = self.apos.caches.get('apostrophe-headless-previews');
+
+      if (data.headlessFilterByTag && data.headlessFilterBy === 'tag') {
+        query.tag = data.headlessFilterByTag;
       }
+
+      if (data.headlessFilterByJoinName && data.headlessFilterByJoinSlug && data.headlessFilterBy === 'join') {
+        query[data.headlessFilterByJoinName] = data.headlessFilterByJoinSlug;
+      }
+
+      if (data.headlessLimit) {
+        query.perPage = data.headlessLimit;
+      }
+
+      url = encodeURI(url + '?' + qs.stringify(query));
+
+      cache = {
+        url: url,
+        cache: await previewCache.get(url)
+      };
+
+      return cache;
     };
 
     // if a URL has a cache, pass it along
     // if not, fetch it, parse it, pass it along, and write it to the cache
-    self.getData = async function (caches) {
-      try {
-        const data = [];
-        const previewCache = self.apos.caches.get('apostrophe-link-previews');
-        await Promise.all(caches.map(async cache => {
-          if (cache.cache) {
-            console.log('pulling from the cache');
-
-            data.push(cache.cache);
-          } else {
-            let response = await request({
-              uri: encodeURI(cache.url)
-            });
-
-            let scrapedData = await self.scrapeData(response);
-
-            previewCache.set(encodeURI(cache.url), scrapedData, 86400);
-            data.push(scrapedData);
-          }
-        }));
-        return data;
-      } catch (e) {
-        console.log('e in getData');
-        return self.apos.utils.error(e);
-      }
-    };
-
-    // normalize all preview requests as an array of URLs for simple processing
-    self.formatUrls = async function (data) {
-      try {
-        let urls;
-        if (data.urlType === 'headless') {
-          let query = {};
-          if (data.headlessFilterByTag && data.headlessFilterBy === 'tag') {
-            query.tag = data.headlessFilterByTag;
-            // data.headlessUrl += '?tag=' + data.headlessFilterByTag;
-          }
-          if (data.headlessFilterByJoinName && data.headlessFilterByJoinSlug && data.headlessFilterBy === 'join') {
-            console.log('am i in here?');
-
-            query[data.headlessFilterByJoinName] = data.headlessFilterByJoinSlug;
-            // data.headlessUrl += '?' + data.headlessFilterByJoinName + '=' + data.headlessFilterByJoinSlug;
-          }
-          if (data.headlessLimit) {
-            query.perPage = data.headlessLimit;
-          }
-
-          console.log(query);
-
-          // data.headlessUrl += '?' + qs.stringify(query);
-
-          console.log(data.headlessUrl);
-          console.log(qs.stringify(query));
-          console.log(encodeURI(data.headlessUrl));
-
-          let headlessResponse = await request({
-            url: encodeURI(data.headlessUrl),
-            json: true,
-            qs: query
-          });
-
-          console.log(headlessResponse.results.length);
-
-          urls = _.map(headlessResponse.results, '_url');
-
-          console.log(urls);
-
-          // if (data.headlessLimit) {
-          //   urls = urls.slice(0, data.headlessLimit);
-          // }
-        } else {
-          urls = [ data.individualUrl ];
-        }
-        return urls;
-      } catch (e) {
-        console.log('e in formatUrls');
-        return self.apos.utils.error(e);
-      }
-    };
-
-    self.scrapeData = async function (body) {
-      try {
-        const data = {};
-        const $ = cheerio.load(body);
-        self.scrapers.forEach(function (scraper) {
-          data[scraper.name] = scraper.scraper($, body);
+    self.getData = async function (cache) {
+      let data;
+      const previewCache = self.apos.caches.get('apostrophe-headless-previews');
+      if (cache.cache) {
+        data = cache.cache;
+      } else {
+        let response = await request({
+          url: cache.url,
+          json: true
         });
-        return data;
-      } catch (e) {
-        console.log('e in scrapeData');
-        return self.apos.utils.error(e);
+        await previewCache.set(cache.url, response, 86400);
+        data = response;
       }
+      return data;
     };
 
     self.pushAsset('stylesheet', 'always', {
       when: 'always'
+    });
+
+    // template conveniences
+    self.addHelpers({
+
+      getImageUrls: function (imagesObj) {
+        let data = [];
+        imagesObj.items.forEach(function (item) {
+          data.push(item._pieces[0].item.attachment._urls);
+        });
+
+        if (data.length === 1) {
+          data = data[0];
+        }
+        return data;
+      }
+
     });
   }
 };

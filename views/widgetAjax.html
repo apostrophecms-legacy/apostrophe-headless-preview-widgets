@@ -1,16 +1,18 @@
-{% for item in data.previews %}
+{% if data.status and data.status === 'error' %}
+  <div class="apos-link-preview-widget__error">
+    Error creating preview: {{ data.error.statusCode }}
+  </div>
+{% endif %}
+
+{% for item in data.results %}
   <div class="apos-link-preview-widget">
-    {% if item.error %}
-      {# <div class="apos-link-preview-widget__error">
-        Error creating preview: {{ data.error.code }}
-      </div> #}
-    {% endif %}
-    {% if item.metaTags.ogImage %}
+    {% set thumbnail = apos.modules['apostrophe-headless-preview-widgets'].getImageUrls(item.thumbnail) %}
+    {% if thumbnail %}
       <div class="apos-link-preview-widget__image">
-        <img src="{{ item.metaTags.ogImage }}" alt="{{ item.metaTags.ogTitle }} | {{ item.alIphoneAppName }}">
+        <img src="{{ thumbnail.full }}" alt="{{ item.title }}">
       </div>
     {% endif %}
-      <h3>{{ item.metaTags.ogTitle }}</h3>
-      <p>{{ item.metaTags.ogDescription }}</p>
+      <h3>{{ item.title }}</h3>
+      <p>{{ item.description }}</p>
   </div>
 {% endfor %}
