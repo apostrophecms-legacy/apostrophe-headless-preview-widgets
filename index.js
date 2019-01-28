@@ -1,82 +1,141 @@
-const request = require('async-request');
+const request = require('request-promise');
 const cheerio = require('cheerio');
 const _ = require('lodash');
-let scrapers = require('./lib/scrapers');
+const qs = require('qs');
 
 module.exports = {
   extend: 'apostrophe-widgets',
-  label: 'Link Previews',
-  addFields: [{
-    name: 'url',
-    label: 'URL',
-    type: 'url'
-  }],
+  label: 'Headless Previews',
+  alias: 'apostropheHeadlessPreviews',
+  addFields: [
+    {
+      name: 'headlessUrl',
+      label: 'URL',
+      type: 'url'
+    },
+    {
+      name: 'headlessLimit',
+      label: 'Preview Limit',
+      help: 'Optional',
+      type: 'integer'
+    },
+    {
+      name: 'headlessFilterBy',
+      label: 'Filter Results by',
+      type: 'select',
+      choices: [
+        { label: 'Nothing', value: 'none' },
+        { label: 'Tag', value: 'tag', showFields: ['headlessFilterByTag'] },
+        { label: 'Join', value: 'join', showFields: ['headlessFilterByJoinName', 'headlessFilterByJoinSlug'] }
+      ]
+    },
+    {
+      name: 'headlessFilterByTag',
+      label: 'Tag to Filter by',
+      type: 'string'
+    },
+    {
+      name: 'headlessFilterByJoinName',
+      label: 'Name of Join Field',
+      type: 'string'
+    },
+    {
+      name: 'headlessFilterByJoinSlug',
+      label: 'Slug of Join',
+      type: 'string'
+    }
+  ],
 
   construct: function (self, options) {
-    // Set up our user options
-    if (self.options.addScrapers) {
-      self.options.addScrapers.forEach(function (scraper) {
-        if (_.isString(scraper.name) && _.isFunction(scraper.scraper)) {
-          scrapers.push(scraper);
-        } else {
-          self.apos.utils.warn('Warning: An apostrophe-link-preview-widgets scraper was malformed. They should be formatted { name: "string", scraper: fn($, body) } ');
-        }
-      });
-    }
-
-    if (self.options.removeScrapers) {
-      scrapers = _.filter(scrapers, function (o) {
-        if (!self.options.removeScrapers.includes(o.name)) {
-          return o;
-        }
-      });
-    }
-
     // Route that responds to requests from the front end
-    self.route('post', 'load', function (req, res) {
-      const previewCache = self.apos.caches.get('apostrophe-link-previews');
-      previewCache.get(req.body.url).then(function (data) {
-        if (data) {
-          return self.sendPreview(req, res, data);
-        } else {
-          self.requestUrl(req, res, previewCache);
-        }
-      });
-    });
-
-    // Function that requests the link we want to preview
-    self.requestUrl = async function (req, res, cache) {
+    self.route('post', 'load', async function (req, res) {
       try {
-        // We did not have a cache for this URL
-        let response = await request(req.body.url);
-        const data = {};
-        const $ = cheerio.load(response.body);
-
-        scrapers.forEach(function (scraper) {
-          data[scraper.name] = scraper.scraper($, response.body);
-        });
-
-        // Cache it for next time
-        cache.set(req.body.url, data, 86400).then(function () {
-          return self.sendPreview(req, res, data);
+        const cache = await self.getCache(req.body.data);
+        const data = await self.getData(cache);
+        const body = self.renderer('widgetAjax', data)(req);
+        return res.send({
+          body: body,
+          status: 'ok'
         });
       } catch (e) {
-        throw new Error('Something went wrong');
+        self.apos.utils.error(e);
+        const body = self.renderer('widgetAjax', {
+          status: 'error',
+          error: e
+        })(req);
+        return res.send({
+          body: body,
+          message: e.message
+        });
       }
+    });
+
+    // pull all cached material for processing
+    self.getCache = async function (data) {
+      let cache;
+      let url = data.headlessUrl;
+      let query = {};
+      const previewCache = self.apos.caches.get('apostrophe-headless-previews');
+
+      if (data.headlessFilterByTag && data.headlessFilterBy === 'tag') {
+        query.tag = data.headlessFilterByTag;
+      }
+
+      if (data.headlessFilterByJoinName && data.headlessFilterByJoinSlug && data.headlessFilterBy === 'join') {
+        query[data.headlessFilterByJoinName] = data.headlessFilterByJoinSlug;
+      }
+
+      if (data.headlessLimit) {
+        query.perPage = data.headlessLimit;
+      }
+
+      url = encodeURI(url + '?' + qs.stringify(query));
+
+      cache = {
+        url: url,
+        cache: await previewCache.get(url)
+      };
+
+      return cache;
     };
 
-    // Render template with preview data and send it back to the front end
-    self.sendPreview = function (req, res, data) {
-      const body = self.renderer('widgetAjax', data)(req);
-      return res.send({
-        body: body,
-        status: 'ok',
-        data: data
-      });
+    // if a URL has a cache, pass it along
+    // if not, fetch it, parse it, pass it along, and write it to the cache
+    self.getData = async function (cache) {
+      let data;
+      const previewCache = self.apos.caches.get('apostrophe-headless-previews');
+      if (cache.cache) {
+        data = cache.cache;
+      } else {
+        let response = await request({
+          url: cache.url,
+          json: true
+        });
+        await previewCache.set(cache.url, response, 86400);
+        data = response;
+      }
+      return data;
     };
 
     self.pushAsset('stylesheet', 'always', {
       when: 'always'
+    });
+
+    // template conveniences
+    self.addHelpers({
+
+      getImageUrls: function (imagesObj) {
+        let data = [];
+        imagesObj.items.forEach(function (item) {
+          data.push(item._pieces[0].item.attachment._urls);
+        });
+
+        if (data.length === 1) {
+          data = data[0];
+        }
+        return data;
+      }
+
     });
   }
 };
