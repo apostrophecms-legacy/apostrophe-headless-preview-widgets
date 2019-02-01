@@ -13,9 +13,9 @@
   "keywords": [
     "ApostropheCMS",
     "Preview",
-    "Open Graph",
-    "Metadata",
-    "Schema.org",
+    "apostrophe-headless",
+    "REST",
+    "API",
     "Widget"
   ],
   "author": "P'unk Ave",
@@ -35,9 +35,6 @@
     "eslint-plugin-standard": "^3.0.1"
   },
   "dependencies": {
-    "cheerio": "^1.0.0-rc.2",
-    "lodash": "^4.17.11",
-    "node-microdata-scraper": "0.0.5",
     "qs": "^6.6.0",
     "request": "^2.88.0",
     "request-promise": "^4.2.2"

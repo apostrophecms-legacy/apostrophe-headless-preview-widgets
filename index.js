@@ -1,6 +1,4 @@
 const request = require('request-promise');
-const cheerio = require('cheerio');
-const _ = require('lodash');
 const qs = require('qs');
 
 module.exports = {

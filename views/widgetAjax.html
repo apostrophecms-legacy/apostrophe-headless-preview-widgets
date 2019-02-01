@@ -1,14 +1,14 @@
 {% if data.status and data.status === 'error' %}
-  <div class="apos-link-preview-widget__error">
+  <div class="apos-headless-preview-widget__error">
     Error creating preview: {{ data.error.statusCode }}
   </div>
 {% endif %}
 
 {% for item in data.results %}
-  <div class="apos-link-preview-widget">
+  <div class="apos-headless-preview-widget">
     {% set thumbnail = apos.modules['apostrophe-headless-preview-widgets'].getImageUrls(item.thumbnail) %}
     {% if thumbnail %}
-      <div class="apos-link-preview-widget__image">
+      <div class="apos-headless-preview-widget__image">
         <img src="{{ thumbnail.full }}" alt="{{ item.title }}">
       </div>
     {% endif %}
