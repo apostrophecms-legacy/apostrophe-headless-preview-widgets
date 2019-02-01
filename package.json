@@ -1,6 +1,6 @@
 {
   "name": "apostrophe-headless-preview-widgets",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Renders page previews based on an apostrophe-headless index endpoint",
   "main": "index.js",
   "scripts": {
