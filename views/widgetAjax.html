@@ -1,18 +1,40 @@
-{% if data.status and data.status === 'error' %}
-  <div class="apos-headless-preview-widget__error">
-    Error creating preview: {{ data.error.statusCode }}
+{% macro renderItems(results) %}
+  {% for item in results %}
+    <div class="apos-headless-preview-widget-item">
+      {% set thumbnail = apos.modules['apostrophe-headless-preview-widgets'].getImageUrls(item.thumbnail) %}
+      {% if thumbnail %}
+        <div class="apos-headless-preview-widget__image">
+          <img src="{{ thumbnail.full }}" alt="{{ item.title }}">
+        </div>
+      {% endif %}
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.description }}</p>
+    </div>
+  {% endfor %}
+{% endmacro %}
+
+{% if data.resultsOnly %}
+  {{ renderItems(data.results) }}
+{% else %}
+  {% if data.status and data.status === 'error' %}
+    <div class="apos-headless-preview-widget__error">
+      Error creating preview: {{ data.error.statusCode }} <br/>
+      Check URL of API endpoint
+    </div>
+  {% endif %}
+
+  {% if data.distinct %}
+    <dl>
+    {% for label, items in data.distinct %}
+      <dt><strong>{{ label }} </strong></dt>
+      {% for item in items %}
+        <dd data-apos-headless-preview-key="{{ label }}" data-apos-headless-preview-value="{{ item.value }}">{{ item.label }}</dd>
+      {% endfor %}
+    {% endfor %}
+    </dl>
+  {% endif %}
+
+  <div class="apos-headless-preview-widget" data-apos-headless-preview-results>
+    {{ renderItems(data.results) }}
   </div>
 {% endif %}
-
-{% for item in data.results %}
-  <div class="apos-headless-preview-widget">
-    {% set thumbnail = apos.modules['apostrophe-headless-preview-widgets'].getImageUrls(item.thumbnail) %}
-    {% if thumbnail %}
-      <div class="apos-headless-preview-widget__image">
-        <img src="{{ thumbnail.full }}" alt="{{ item.title }}">
-      </div>
-    {% endif %}
-      <h3>{{ item.title }}</h3>
-      <p>{{ item.description }}</p>
-  </div>
-{% endfor %}

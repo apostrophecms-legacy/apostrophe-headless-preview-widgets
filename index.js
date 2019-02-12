@@ -1,5 +1,6 @@
 const request = require('request-promise');
 const qs = require('qs');
+const _ = require('lodash');
 
 module.exports = {
   extend: 'apostrophe-widgets',
@@ -41,6 +42,20 @@ module.exports = {
       name: 'headlessFilterByJoinSlug',
       label: 'Slug of Join',
       type: 'string'
+    },
+    {
+      name: 'headlessGetDistinct',
+      label: 'Fetch DISTINCT values of a Field?',
+      type: 'boolean',
+      choices: [
+        { label: 'No', value: false },
+        { label: 'Yes', value: true, showFields: ['headlessDistinctFieldname'] }
+      ]
+    },
+    {
+      name: 'headlessDistinctFieldname',
+      label: 'Field name of DISTINCT query',
+      type: 'string'
     }
   ],
 
@@ -50,10 +65,22 @@ module.exports = {
       try {
         const cache = await self.getCache(req.body.data);
         const data = await self.getData(cache);
+
+        if (req.body.data.extraQueries && req.body.data.extraQueries.resultsOnly) {
+          data.resultsOnly = true;
+        }
+
         const body = self.renderer('widgetAjax', data)(req);
+
         return res.send({
           body: body,
-          status: 'ok'
+          status: 'ok',
+          page: {
+            currentPage: data.currentPage,
+            pages: data.pages,
+            perPage: data.perPage,
+            totalResults: data.results
+          }
         });
       } catch (e) {
         self.apos.utils.error(e);
@@ -75,6 +102,7 @@ module.exports = {
       let query = {};
       const previewCache = self.apos.caches.get('apostrophe-headless-previews');
 
+      // construct any queries
       if (data.headlessFilterByTag && data.headlessFilterBy === 'tag') {
         query.tag = data.headlessFilterByTag;
       }
@@ -87,12 +115,21 @@ module.exports = {
         query.perPage = data.headlessLimit;
       }
 
+      if (data.headlessDistinctFieldname) {
+        query.distinct = data.headlessDistinctFieldname;
+      }
+
+      if (data.extraQueries) {
+        query = _.merge(query, data.extraQueries);
+      }
+
       url = encodeURI(url + '?' + qs.stringify(query));
 
-      cache = {
-        url: url,
-        cache: await previewCache.get(url)
-      };
+      cache = { url: url, cache: null };
+
+      if (!data.noCache) {
+        cache.cache = await previewCache.get(url);
+      }
 
       return cache;
     };
@@ -102,13 +139,18 @@ module.exports = {
     self.getData = async function (cache) {
       let data;
       const previewCache = self.apos.caches.get('apostrophe-headless-previews');
-      if (cache.cache) {
+      if (cache.cache && !self.options.noCache) {
         data = cache.cache;
       } else {
         let response = await request({
           url: cache.url,
           json: true
         });
+
+        if (typeof response !== 'object') {
+          throw new Error({ message: 'Recieved something othet than JSON, check the URL' });
+        }
+
         await previewCache.set(cache.url, response, 86400);
         data = response;
       }

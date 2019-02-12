@@ -1,9 +1,15 @@
 {% import 'macros/loading.html' as loading %}
 
-<div class="apos-headless-preview-widget__wrapper" data-apos-headless-preview-target>
+<div class="apos-headless-preview-widget__wrapper" style="padding:40px;" >
+<button data-apos-headless-preview-back style="padding: 20px;">Back</button>
+<button data-apos-headless-preview-next style="padding: 20px;">Next</button>
+
   {# gets populated by the frontend #}
-  <div class="apos-headless-preview-widget__loading">
-    Loading up a preview ...
-    {{ loading.render() }}
+  <div data-apos-headless-preview-target data-apos-headless-preview-current-page>
+    <div class="apos-headless-preview-widget__loading">
+      Loading up a preview ...
+      {{ loading.render() }}
+    </div>
   </div>
+  <button data-apos-headless-preview-more style="padding: 20px; display: block;">Load MOre</button>
 </div>
