@@ -3,10 +3,10 @@
 ## Renders page previews based on an apostrophe-headless index endpoint
 
 ### Detail
-`apostrophe-headless-preview-widgets` lets you paste a link to an `apostrophe-headless` pieces index endpoint and have the JSON response returned to a template for rendering. You can customize that template and use it to display a preview of the external show pages within another Apostrophe site. Template is rendered via AJAX  after page load and the module leverages `apostrophe-caches` for fastest delivery.
+`apostrophe-headless-preview-widgets` lets you paste a link to an `[apostrophe-headless](https://npmjs.org/package/apostrophe-headless)` pieces API endpoint, typically on another site, and have the JSON response returned to a template for rendering. You can customize that template and use it to display a preview of the external show pages within another Apostrophe site. Template is rendered via AJAX  after page load and the module leverages `apostrophe-caches` for fastest delivery.
 
 ### Example response object
-Your template will recieve an object that could look like:
+Your template will recieve a `data` object that could look like:
 ```js
 {
   total: 3,
