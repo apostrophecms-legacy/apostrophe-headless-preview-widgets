@@ -22,7 +22,7 @@ apos.define('apostrophe-headless-preview-widgets', {
       }, function (err) {
         if (err) {
           console.log('error from server');
-          console.log(err);
+          return callback(err);
         }
       });
     };
@@ -66,7 +66,10 @@ apos.define('apostrophe-headless-preview-widgets', {
       var data = self.getData($widget);
       data.extraQueries = { resultsOnly: true };
       data.extraQueries[$this.attr('data-apos-headless-preview-key')] = $this.attr('data-apos-headless-preview-value');
-      self.request(data, function (response) {
+      self.request(data, function (err, response) {
+        if (err) {
+          apos.utils.error(err);
+        }
         self.overwrite(response, $widget);
         self.togglePagerLocks(response.page, $widget);
         $widget.find('[data-apos-headless-preview-target]').attr('data-apos-headless-preview-filtered-key', $this.attr('data-apos-headless-preview-key'));
