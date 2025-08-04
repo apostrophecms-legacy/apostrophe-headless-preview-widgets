@@ -1,3 +1,7 @@
+# ⛔️ **DEPRECATED** — do not use for new projects
+
+See [our current docs](https://docs.apostrophecms.org/)
+
 # apostrophe-headless-preview-widgets
 
 ## Renders page previews based on an apostrophe-headless index endpoint
